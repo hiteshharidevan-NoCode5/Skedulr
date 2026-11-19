@@ -1,4 +1,4 @@
-name: Build Skedar APK and ZIP
+name: Build Skedlar APK and ZIP
 
 on:
   push:
@@ -23,19 +23,19 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Build Skedar APK
+      - name: Build Skedlar APK
         run: gradle assembleDebug
 
-      - name: Package Skedar.apk and Skedar.zip
+      - name: Package Skedlar.apk and Skedlar.zip
         run: |
           mkdir -p release_out
-          cp app/build/outputs/apk/debug/Skedar-debug.apk release_out/Skedar.apk
-          zip -r release_out/Skedar.zip app build.gradle settings.gradle gradle.properties release_out/Skedar.apk
+          cp app/build/outputs/apk/debug/Skedlar-debug.apk release_out/Skedlar.apk
+          zip -r release_out/Skedlar.zip app build.gradle settings.gradle gradle.properties release_out/Skedlar.apk
 
-      - name: Upload Skedar Build Artifacts
+      - name: Upload Skedlar Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Skedar-Release
+          name: Skedlar-Release
           path: |
-            release_out/Skedar.apk
-            release_out/Skedar.zip
+            release_out/Skedlar.apk
+            release_out/Skedlar.zip

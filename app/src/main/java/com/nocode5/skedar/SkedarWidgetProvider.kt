@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
+import android.os.Bundle
 import android.widget.RemoteViews
 import java.text.SimpleDateFormat
 import java.util.*
@@ -20,6 +21,16 @@ class SkedarWidgetProvider : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             updateWidget(context, appWidgetManager, appWidgetId)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId)
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
     }
 
     companion object {
@@ -36,8 +47,21 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val shape = prefs.getString("shape", "SQUARE") ?: "SQUARE"
             val opacity = prefs.getInt("opacity", 30)
             val showEvents = prefs.getBoolean("show_events", true)
+            val showHolidays = prefs.getBoolean("show_holidays", true)
+            val textColorHex = prefs.getString("text_color", "#FFFFFF") ?: "#FFFFFF"
+            val scalePercent = prefs.getInt("scale", 100)
 
-            val bitmap = renderCalendarBitmap(context, shape, opacity, showEvents)
+            val options = manager.getAppWidgetOptions(widgetId)
+            val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 220).coerceAtLeast(120)
+            val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 220).coerceAtLeast(120)
+
+            val density = context.resources.displayMetrics.density
+            val pxW = (minW * density).toInt().coerceIn(300, 1400)
+            val pxH = (maxH * density).toInt().coerceIn(300, 1600)
+
+            val bitmap = renderCalendarBitmap(
+                context, pxW, pxH, shape, opacity, showEvents, showHolidays, textColorHex, scalePercent
+            )
             val views = RemoteViews(context.packageName, R.layout.widget_skedar)
             views.setImageViewBitmap(R.id.widget_canvas, bitmap)
 
@@ -50,16 +74,24 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             manager.updateAppWidget(widgetId, views)
         }
 
-        private fun renderCalendarBitmap(context: Context, shape: String, opacityPercent: Int, showEvents: Boolean): Bitmap {
-            val width = if (shape == "RECTANGLE") 720 else 600
-            val height = if (shape == "RECTANGLE") 460 else 600
+        private fun renderCalendarBitmap(
+            context: Context,
+            width: Int,
+            height: Int,
+            shape: String,
+            opacityPercent: Int,
+            showEvents: Boolean,
+            showHolidays: Boolean,
+            textColorHex: String,
+            scalePercent: Int
+        ): Bitmap {
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
             val path = Path()
             val cx = width / 2f
             val cy = height / 2f
-            val pad = 12f
+            val pad = 10f
 
             when (shape) {
                 "CIRCLE" -> {
@@ -82,13 +114,21 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                     }
                     path.close()
                 }
-                else -> { // SQUARE or RECTANGLE
+                "RECTANGLE" -> {
                     val rect = RectF(pad, pad, width - pad, height - pad)
+                    path.addRoundRect(rect, 28f, 28f, Path.Direction.CW)
+                }
+                else -> {
+                    val side = min(width, height) - (pad * 2)
+                    val left = cx - side / 2f
+                    val top = cy - side / 2f
+                    val rect = RectF(left, top, left + side, top + side)
                     path.addRoundRect(rect, 36f, 36f, Path.Direction.CW)
                 }
             }
 
-            // Fill background with chosen transparency
+            val parsedTextColor = try { Color.parseColor(textColorHex) } catch (_: Exception) { Color.WHITE }
+
             val alpha = ((opacityPercent / 100f) * 255).toInt().coerceIn(0, 255)
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.argb(alpha, 15, 15, 15)
@@ -96,49 +136,71 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             }
             canvas.drawPath(path, bgPaint)
 
-            // Crisp minimal border
             val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.argb(180, 255, 255, 255)
+                color = parsedTextColor
+                this.alpha = 170
                 style = Paint.Style.STROKE
                 strokeWidth = 3f
             }
             canvas.drawPath(path, borderPaint)
 
-            // Draw Calendar Grid centered inside safe area
             val cal = Calendar.getInstance()
             val today = cal.get(Calendar.DAY_OF_MONTH)
             val year = cal.get(Calendar.YEAR)
             val month = cal.get(Calendar.MONTH)
+
             val eventDays = if (showEvents) CalendarHelper.getEventDaysInMonth(context, year, month) else emptySet()
+            val holidayMap = if (showHolidays) HolidayRepository.getHolidayDaysInMonth(year, month) else emptyMap()
+
+            val scaleFactor = (scalePercent / 100f).coerceIn(0.6f, 1.4f)
+            val refDim = min(width, height).toFloat()
+            val titleSize = (refDim * 0.052f * scaleFactor).coerceIn(16f, 54f)
+            val daySize = (refDim * 0.042f * scaleFactor).coerceIn(13f, 44f)
 
             val monthTitle = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time).uppercase()
             val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                textSize = 26f
+                color = parsedTextColor
+                textSize = titleSize
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
             }
 
-            val topOffset = if (shape == "TRIANGLE") height * 0.42f else height * 0.22f
+            val usableW = when (shape) {
+                "TRIANGLE" -> width * 0.46f * scaleFactor
+                "SQUARE" -> (min(width, height) * 0.72f * scaleFactor)
+                else -> width * 0.74f * scaleFactor
+            }.coerceAtMost(width * 0.88f)
+
+            val usableH = when (shape) {
+                "TRIANGLE" -> height * 0.44f * scaleFactor
+                "SQUARE" -> (min(width, height) * 0.56f * scaleFactor)
+                else -> height * 0.60f * scaleFactor
+            }.coerceAtMost(height * 0.78f)
+
+            val topOffset = if (shape == "TRIANGLE") {
+                cy - (usableH * 0.15f)
+            } else {
+                cy - (usableH * 0.45f)
+            }
+
             canvas.drawText(monthTitle, cx, topOffset, titlePaint)
 
             val dayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                textSize = 22f
+                color = parsedTextColor
+                textSize = daySize
                 textAlign = Paint.Align.CENTER
             }
             val todayBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
+                color = parsedTextColor
                 style = Paint.Style.FILL
             }
             val todayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.BLACK
-                textSize = 22f
+                color = if (parsedTextColor == Color.BLACK) Color.WHITE else Color.BLACK
+                textSize = daySize
                 typeface = Typeface.DEFAULT_BOLD
                 textAlign = Paint.Align.CENTER
             }
             val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor("#FFD54F")
                 style = Paint.Style.FILL
             }
 
@@ -146,24 +208,33 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) - 1
             val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-            val gridWidth = if (shape == "TRIANGLE") width * 0.48f else width * 0.68f
-            val startX = cx - (gridWidth / 2f)
-            val colStep = gridWidth / 6f
-            val rowStep = if (shape == "TRIANGLE") 34f else 42f
-            var currentY = topOffset + 45f
+            val startX = cx - (usableW / 2f)
+            val colStep = usableW / 6f
+            val rowStep = usableH / 5.5f
+            var currentY = topOffset + (rowStep * 1.15f)
 
             var col = firstDayOfWeek
             for (day in 1..daysInMonth) {
                 val x = startX + (col * colStep)
                 if (day == today) {
-                    canvas.drawCircle(x, currentY - 8f, 17f, todayBgPaint)
+                    canvas.drawCircle(x, currentY - (daySize * 0.34f), daySize * 0.76f, todayBgPaint)
                     canvas.drawText(day.toString(), x, currentY, todayTextPaint)
                 } else {
                     canvas.drawText(day.toString(), x, currentY, dayPaint)
                 }
-                if (eventDays.contains(day)) {
-                    canvas.drawCircle(x, currentY + 10f, 3.5f, dotPaint)
+
+                val hType = holidayMap[day]
+                val hasPersonal = eventDays.contains(day)
+                if (hType != null || hasPersonal) {
+                    dotPaint.color = when {
+                        hType == "SABARIMALA" -> Color.parseColor("#FFD54F")
+                        hType == "FESTIVAL" -> Color.parseColor("#FF8A65")
+                        hType == "BANK_COURT" -> Color.parseColor("#4FC3F7")
+                        else -> Color.parseColor("#81C784")
+                    }
+                    canvas.drawCircle(x, currentY + (daySize * 0.45f), (daySize * 0.16f).coerceAtLeast(3f), dotPaint)
                 }
+
                 col++
                 if (col > 6) {
                     col = 0
