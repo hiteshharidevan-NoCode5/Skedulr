@@ -31,6 +31,9 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="android.appwidget.action.APPWIDGET_OPTIONS_CHANGED" />
+                <action android:name="com.nocode5.skedar.ACTION_PREV_MONTH" />
+                <action android:name="com.nocode5.skedar.ACTION_NEXT_MONTH" />
+                <action android:name="com.nocode5.skedar.ACTION_RESET_MONTH" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

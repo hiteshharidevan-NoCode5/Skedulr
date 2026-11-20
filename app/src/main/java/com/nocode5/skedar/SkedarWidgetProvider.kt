@@ -16,6 +16,27 @@ import kotlin.math.min
 
 class SkedarWidgetProvider : AppWidgetProvider() {
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        val prefs = context.getSharedPreferences("skedar_prefs", Context.MODE_PRIVATE)
+        val currentOffset = prefs.getInt("month_offset", 0)
+
+        when (intent.action) {
+            ACTION_PREV_MONTH -> {
+                prefs.edit().putInt("month_offset", currentOffset - 1).apply()
+                updateAllWidgets(context)
+            }
+            ACTION_NEXT_MONTH -> {
+                prefs.edit().putInt("month_offset", currentOffset + 1).apply()
+                updateAllWidgets(context)
+            }
+            ACTION_RESET_MONTH -> {
+                prefs.edit().putInt("month_offset", 0).apply()
+                updateAllWidgets(context)
+            }
+        }
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
             updateWidget(context, appWidgetManager, appWidgetId)
@@ -33,12 +54,25 @@ class SkedarWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        const val ACTION_PREV_MONTH = "com.nocode5.skedar.ACTION_PREV_MONTH"
+        const val ACTION_NEXT_MONTH = "com.nocode5.skedar.ACTION_NEXT_MONTH"
+        const val ACTION_RESET_MONTH = "com.nocode5.skedar.ACTION_RESET_MONTH"
+
         fun updateAllWidgets(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, SkedarWidgetProvider::class.java))
             for (id in ids) {
                 updateWidget(context, manager, id)
             }
+        }
+
+        private fun getActionPendingIntent(context: Context, action: String, reqCode: Int): PendingIntent {
+            val intent = Intent(context, SkedarWidgetProvider::class.java).apply {
+                this.action = action
+            }
+            return PendingIntent.getBroadcast(
+                context, reqCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
 
         fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
@@ -49,6 +83,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val showHolidays = prefs.getBoolean("show_holidays", true)
             val textColorHex = prefs.getString("text_color", "#FFFFFF") ?: "#FFFFFF"
             val scalePercent = prefs.getInt("scale", 100)
+            val monthOffset = prefs.getInt("month_offset", 0)
 
             val options = manager.getAppWidgetOptions(widgetId)
             val defaultW = if (shape == "VERTICAL") 200 else 320
@@ -68,16 +103,20 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             }
 
             val bitmap = renderCalendarBitmap(
-                context, pxW, pxH, shape, opacity, showEvents, showHolidays, textColorHex, scalePercent
+                context, pxW, pxH, shape, opacity, showEvents, showHolidays, textColorHex, scalePercent, monthOffset
             )
             val views = RemoteViews(context.packageName, R.layout.widget_skedar)
             views.setImageViewBitmap(R.id.widget_canvas, bitmap)
 
-            val intent = Intent(context, MainActivity::class.java)
-            val pendingIntent = PendingIntent.getActivity(
-                context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            views.setOnClickPendingIntent(R.id.btn_prev_month, getActionPendingIntent(context, ACTION_PREV_MONTH, 101))
+            views.setOnClickPendingIntent(R.id.btn_reset_month, getActionPendingIntent(context, ACTION_RESET_MONTH, 102))
+            views.setOnClickPendingIntent(R.id.btn_next_month, getActionPendingIntent(context, ACTION_NEXT_MONTH, 103))
+
+            val settingsIntent = Intent(context, MainActivity::class.java)
+            val settingsPending = PendingIntent.getActivity(
+                context, 0, settingsIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+            views.setOnClickPendingIntent(R.id.btn_open_settings, settingsPending)
 
             manager.updateAppWidget(widgetId, views)
         }
@@ -91,7 +130,8 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             showEvents: Boolean,
             showHolidays: Boolean,
             textColorHex: String,
-            scalePercent: Int
+            scalePercent: Int,
+            monthOffset: Int
         ): Bitmap {
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -105,7 +145,6 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val parsedTextColor = try { Color.parseColor(textColorHex) } catch (_: Exception) { Color.WHITE }
             val shadowColor = if (parsedTextColor == Color.BLACK) Color.argb(190, 255, 255, 255) else Color.argb(215, 0, 0, 0)
 
-            // Background fill only (outer border removed)
             val alpha = ((opacityPercent / 100f) * 255).toInt().coerceIn(0, 255)
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.argb(alpha, 15, 15, 15)
@@ -113,10 +152,18 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             }
             canvas.drawPath(path, bgPaint)
 
-            val cal = Calendar.getInstance()
-            val today = cal.get(Calendar.DAY_OF_MONTH)
+            val nowCal = Calendar.getInstance()
+            val realToday = nowCal.get(Calendar.DAY_OF_MONTH)
+            val realMonth = nowCal.get(Calendar.MONTH)
+            val realYear = nowCal.get(Calendar.YEAR)
+
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.DAY_OF_MONTH, 1)
+                add(Calendar.MONTH, monthOffset)
+            }
             val year = cal.get(Calendar.YEAR)
             val month = cal.get(Calendar.MONTH)
+            val isCurrentMonth = (year == realYear && month == realMonth)
 
             val eventDays = if (showEvents) CalendarHelper.getEventDaysInMonth(context, year, month) else emptySet()
             val holidayMap = if (showHolidays) HolidayRepository.getHolidayDaysInMonth(year, month) else emptyMap()
@@ -134,6 +181,14 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
                 setShadowLayer(5f, 0f, 2f, shadowColor)
+            }
+            val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = parsedTextColor
+                this.alpha = 180
+                textSize = titleSize * 0.95f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                setShadowLayer(4f, 0f, 1f, shadowColor)
             }
 
             val dayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -167,29 +222,31 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                 setShadowLayer(3f, 0f, 1f, Color.BLACK)
             }
 
-            cal.set(Calendar.DAY_OF_MONTH, 1)
-            val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) - 1 // 0 = Sun .. 6 = Sat
+            val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) - 1
             val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
             val dayInitials = arrayOf("S", "M", "T", "W", "T", "F", "S")
 
             val usableW = (width * 0.84f * scaleFactor).coerceAtMost(width * 0.92f)
             val usableH = (height * 0.76f * scaleFactor).coerceAtMost(height * 0.88f)
             val topHeaderY = (height - usableH) / 2f + titleSize * 0.6f
+            val gridLeft = cx - usableW / 2f
+            val gridRight = cx + usableW / 2f
+
+            // Draw <   MONTH YEAR   >
+            canvas.drawText("‹", gridLeft + titleSize * 0.35f, topHeaderY, arrowPaint)
             canvas.drawText(monthTitle, cx, topHeaderY, titlePaint)
+            canvas.drawText("›", gridRight - titleSize * 0.35f, topHeaderY, arrowPaint)
 
             val gridTop = topHeaderY + titleSize * 2.1f
             val gridBottom = height - (height - usableH) / 2f
             val gridHeight = (gridBottom - gridTop).coerceAtLeast(100f)
-            val gridLeft = cx - usableW / 2f
 
             if (shape == "VERTICAL") {
-                // VERTICAL RECTANGLE: Sunday -> Saturday stacked top-to-bottom (7 rows), weeks left-to-right (up to 6 cols)
                 val totalWeeks = ((firstDayOfWeek + daysInMonth + 6) / 7).coerceIn(4, 6)
-                val totalCols = totalWeeks + 1 // Col 0 = S M T W T F S labels, Cols 1..totalWeeks = week columns
+                val totalCols = totalWeeks + 1
                 val colStep = usableW / (totalCols - 1).coerceAtLeast(1)
                 val rowStep = gridHeight / 6f
 
-                // Draw S-M-T-W-T-F-S vertically on the left column
                 for (dow in 0..6) {
                     val y = gridTop + dow * rowStep
                     canvas.drawText(dayInitials[dow], gridLeft, y, labelPaint)
@@ -201,7 +258,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                     val x = gridLeft + weekCol * colStep
                     val y = gridTop + dow * rowStep
 
-                    if (day == today) {
+                    if (isCurrentMonth && day == realToday) {
                         canvas.drawCircle(x, y - (daySize * 0.34f), daySize * 0.76f, todayBgPaint)
                         canvas.drawText(day.toString(), x, y, todayTextPaint)
                     } else {
@@ -227,9 +284,8 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                     }
                 }
             } else {
-                // HORIZONTAL RECTANGLE: Standard Sunday -> Saturday left-to-right (7 cols), weeks top-to-bottom
                 val colStep = usableW / 6f
-                val totalRows = ((firstDayOfWeek + daysInMonth + 6) / 7) + 1 // +1 for S M T W T F S header row
+                val totalRows = ((firstDayOfWeek + daysInMonth + 6) / 7) + 1
                 val rowStep = gridHeight / (totalRows - 1).coerceAtLeast(1)
 
                 for (c in 0..6) {
@@ -243,7 +299,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                     val x = gridLeft + col * colStep
                     val y = gridTop + row * rowStep
 
-                    if (day == today) {
+                    if (isCurrentMonth && day == realToday) {
                         canvas.drawCircle(x, y - (daySize * 0.34f), daySize * 0.76f, todayBgPaint)
                         canvas.drawText(day.toString(), x, y, todayTextPaint)
                     } else {
