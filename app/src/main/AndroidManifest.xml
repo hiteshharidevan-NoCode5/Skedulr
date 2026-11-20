@@ -4,8 +4,10 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
-    <application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
+    <application
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Skedulr"
         android:supportsRtl="true"
         android:theme="@style/Theme.Skedar">
@@ -31,9 +33,6 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="android.appwidget.action.APPWIDGET_OPTIONS_CHANGED" />
-                <action android:name="com.nocode5.skedar.ACTION_PREV_MONTH" />
-                <action android:name="com.nocode5.skedar.ACTION_NEXT_MONTH" />
-                <action android:name="com.nocode5.skedar.ACTION_RESET_MONTH" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
