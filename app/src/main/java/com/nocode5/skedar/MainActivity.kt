@@ -107,12 +107,9 @@ class MainActivity : AppCompatActivity() {
             }, selectedYear, selectedMonth, selectedDay).show()
         }
 
-        when (prefs.getString("shape", "SQUARE")) {
-            "RECTANGLE" -> rgShapes.check(R.id.rb_rectangle)
-            "CIRCLE" -> rgShapes.check(R.id.rb_circle)
-            "TRIANGLE" -> rgShapes.check(R.id.rb_triangle)
-            "HEXAGON" -> rgShapes.check(R.id.rb_hexagon)
-            else -> rgShapes.check(R.id.rb_square)
+        when (prefs.getString("shape", "HORIZONTAL")) {
+            "VERTICAL" -> rgShapes.check(R.id.rb_vertical)
+            else -> rgShapes.check(R.id.rb_horizontal)
         }
 
         val savedOpacity = prefs.getInt("opacity", 30)
@@ -140,11 +137,8 @@ class MainActivity : AppCompatActivity() {
 
         btnApply.setOnClickListener {
             val selectedShape = when (rgShapes.checkedRadioButtonId) {
-                R.id.rb_rectangle -> "RECTANGLE"
-                R.id.rb_circle -> "CIRCLE"
-                R.id.rb_triangle -> "TRIANGLE"
-                R.id.rb_hexagon -> "HEXAGON"
-                else -> "SQUARE"
+                R.id.rb_vertical -> "VERTICAL"
+                else -> "HORIZONTAL"
             }
             val chosenHex = colorOptions[spTextColor.selectedItemPosition].second
             prefs.edit()

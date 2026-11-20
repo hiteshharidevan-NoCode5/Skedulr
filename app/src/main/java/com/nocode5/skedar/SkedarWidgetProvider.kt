@@ -11,10 +11,8 @@ import android.os.Bundle
 import android.widget.RemoteViews
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
 
 class SkedarWidgetProvider : AppWidgetProvider() {
 
@@ -45,7 +43,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
 
         fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
             val prefs = context.getSharedPreferences("skedar_prefs", Context.MODE_PRIVATE)
-            val shape = prefs.getString("shape", "SQUARE") ?: "SQUARE"
+            val shape = prefs.getString("shape", "HORIZONTAL") ?: "HORIZONTAL"
             val opacity = prefs.getInt("opacity", 30)
             val showEvents = prefs.getBoolean("show_events", true)
             val showHolidays = prefs.getBoolean("show_holidays", true)
@@ -53,19 +51,20 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val scalePercent = prefs.getInt("scale", 100)
 
             val options = manager.getAppWidgetOptions(widgetId)
-            val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 220).coerceAtLeast(120)
-            val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 220).coerceAtLeast(120)
+            val defaultW = if (shape == "VERTICAL") 200 else 320
+            val defaultH = if (shape == "VERTICAL") 340 else 200
+            val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, defaultW).coerceAtLeast(110)
+            val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, defaultH).coerceAtLeast(110)
 
-            // Cap max dimension at 680px while preserving exact aspect ratio (keeps bitmap < 1.5MB)
             val aspect = minW.toFloat() / maxH.toFloat()
             val pxW: Int
             val pxH: Int
             if (aspect >= 1f) {
-                pxW = 680
-                pxH = (680f / aspect).toInt().coerceIn(260, 680)
+                pxW = 720
+                pxH = (720f / aspect).toInt().coerceIn(280, 720)
             } else {
-                pxH = 680
-                pxW = (680f * aspect).toInt().coerceIn(260, 680)
+                pxH = 720
+                pxW = (720f * aspect).toInt().coerceIn(280, 720)
             }
 
             val bitmap = renderCalendarBitmap(
@@ -97,63 +96,22 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
-            val path = Path()
-            val cx = width / 2f
-            val cy = height / 2f
-            val pad = 10f
-
-            when (shape) {
-                "CIRCLE" -> {
-                    val radius = min(cx, cy) - pad
-                    path.addCircle(cx, cy, radius, Path.Direction.CW)
-                }
-                "TRIANGLE" -> {
-                    path.moveTo(cx, pad)
-                    path.lineTo(width - pad, height - pad)
-                    path.lineTo(pad, height - pad)
-                    path.close()
-                }
-                "HEXAGON" -> {
-                    val radius = min(cx, cy) - pad
-                    for (i in 0 until 6) {
-                        val angle = Math.toRadians((60 * i - 30).toDouble())
-                        val x = (cx + radius * cos(angle)).toFloat()
-                        val y = (cy + radius * sin(angle)).toFloat()
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                    }
-                    path.close()
-                }
-                "RECTANGLE" -> {
-                    val rect = RectF(pad, pad, width - pad, height - pad)
-                    path.addRoundRect(rect, 28f, 28f, Path.Direction.CW)
-                }
-                else -> {
-                    val side = min(width, height) - (pad * 2)
-                    val left = cx - side / 2f
-                    val top = cy - side / 2f
-                    val rect = RectF(left, top, left + side, top + side)
-                    path.addRoundRect(rect, 36f, 36f, Path.Direction.CW)
-                }
+            val pad = 8f
+            val rect = RectF(pad, pad, width - pad, height - pad)
+            val path = Path().apply {
+                addRoundRect(rect, 28f, 28f, Path.Direction.CW)
             }
 
             val parsedTextColor = try { Color.parseColor(textColorHex) } catch (_: Exception) { Color.WHITE }
-            val shadowColor = if (parsedTextColor == Color.BLACK) Color.argb(190, 255, 255, 255) else Color.argb(210, 0, 0, 0)
+            val shadowColor = if (parsedTextColor == Color.BLACK) Color.argb(190, 255, 255, 255) else Color.argb(215, 0, 0, 0)
 
+            // Background fill only (outer border removed)
             val alpha = ((opacityPercent / 100f) * 255).toInt().coerceIn(0, 255)
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.argb(alpha, 15, 15, 15)
                 style = Paint.Style.FILL
             }
             canvas.drawPath(path, bgPaint)
-
-            val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = parsedTextColor
-                this.alpha = 190
-                style = Paint.Style.STROKE
-                strokeWidth = 3f
-                setShadowLayer(4f, 0f, 1f, shadowColor)
-            }
-            canvas.drawPath(path, borderPaint)
 
             val cal = Calendar.getInstance()
             val today = cal.get(Calendar.DAY_OF_MONTH)
@@ -165,9 +123,10 @@ class SkedarWidgetProvider : AppWidgetProvider() {
 
             val scaleFactor = (scalePercent / 100f).coerceIn(0.6f, 1.4f)
             val refDim = min(width, height).toFloat()
-            val titleSize = (refDim * 0.055f * scaleFactor).coerceIn(16f, 46f)
-            val daySize = (refDim * 0.045f * scaleFactor).coerceIn(13f, 38f)
+            val titleSize = (refDim * 0.062f * scaleFactor).coerceIn(16f, 44f)
+            val daySize = (refDim * 0.052f * scaleFactor).coerceIn(13f, 38f)
 
+            val cx = width / 2f
             val monthTitle = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time).uppercase()
             val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = parsedTextColor
@@ -177,32 +136,20 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                 setShadowLayer(5f, 0f, 2f, shadowColor)
             }
 
-            val usableW = when (shape) {
-                "TRIANGLE" -> width * 0.46f * scaleFactor
-                "SQUARE" -> (min(width, height) * 0.72f * scaleFactor)
-                else -> width * 0.76f * scaleFactor
-            }.coerceAtMost(width * 0.88f)
-
-            val usableH = when (shape) {
-                "TRIANGLE" -> height * 0.44f * scaleFactor
-                "SQUARE" -> (min(width, height) * 0.56f * scaleFactor)
-                else -> height * 0.62f * scaleFactor
-            }.coerceAtMost(height * 0.78f)
-
-            val topOffset = if (shape == "TRIANGLE") {
-                cy - (usableH * 0.15f)
-            } else {
-                cy - (usableH * 0.45f)
-            }
-
-            canvas.drawText(monthTitle, cx, topOffset, titlePaint)
-
             val dayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = parsedTextColor
                 textSize = daySize
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
                 setShadowLayer(5f, 0f, 2f, shadowColor)
+            }
+            val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = parsedTextColor
+                this.alpha = 180
+                textSize = daySize * 0.78f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                setShadowLayer(4f, 0f, 1f, shadowColor)
             }
             val todayBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = parsedTextColor
@@ -221,40 +168,105 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             }
 
             cal.set(Calendar.DAY_OF_MONTH, 1)
-            val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) - 1
+            val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK) - 1 // 0 = Sun .. 6 = Sat
             val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val dayInitials = arrayOf("S", "M", "T", "W", "T", "F", "S")
 
-            val startX = cx - (usableW / 2f)
-            val colStep = usableW / 6f
-            val rowStep = usableH / 5.5f
-            var currentY = topOffset + (rowStep * 1.15f)
+            val usableW = (width * 0.84f * scaleFactor).coerceAtMost(width * 0.92f)
+            val usableH = (height * 0.76f * scaleFactor).coerceAtMost(height * 0.88f)
+            val topHeaderY = (height - usableH) / 2f + titleSize * 0.8f
+            canvas.drawText(monthTitle, cx, topHeaderY, titlePaint)
 
-            var col = firstDayOfWeek
-            for (day in 1..daysInMonth) {
-                val x = startX + (col * colStep)
-                if (day == today) {
-                    canvas.drawCircle(x, currentY - (daySize * 0.34f), daySize * 0.76f, todayBgPaint)
-                    canvas.drawText(day.toString(), x, currentY, todayTextPaint)
-                } else {
-                    canvas.drawText(day.toString(), x, currentY, dayPaint)
+            val gridTop = topHeaderY + titleSize * 1.15f
+            val gridBottom = height - (height - usableH) / 2f
+            val gridHeight = (gridBottom - gridTop).coerceAtLeast(100f)
+            val gridLeft = cx - usableW / 2f
+
+            if (shape == "VERTICAL") {
+                // VERTICAL RECTANGLE: Sunday -> Saturday stacked top-to-bottom (7 rows), weeks left-to-right (up to 6 cols)
+                val totalWeeks = ((firstDayOfWeek + daysInMonth + 6) / 7).coerceIn(4, 6)
+                val totalCols = totalWeeks + 1 // Col 0 = S M T W T F S labels, Cols 1..totalWeeks = week columns
+                val colStep = usableW / (totalCols - 1).coerceAtLeast(1)
+                val rowStep = gridHeight / 6f
+
+                // Draw S-M-T-W-T-F-S vertically on the left column
+                for (dow in 0..6) {
+                    val y = gridTop + dow * rowStep
+                    canvas.drawText(dayInitials[dow], gridLeft, y, labelPaint)
                 }
 
-                val hType = holidayMap[day]
-                val hasPersonal = eventDays.contains(day)
-                if (hType != null || hasPersonal) {
-                    dotPaint.color = when {
-                        hType == "SABARIMALA" -> Color.parseColor("#FFD54F")
-                        hType == "FESTIVAL" -> Color.parseColor("#FF8A65")
-                        hType == "BANK_COURT" -> Color.parseColor("#4FC3F7")
-                        else -> Color.parseColor("#81C784")
+                var weekCol = 1
+                var dow = firstDayOfWeek
+                for (day in 1..daysInMonth) {
+                    val x = gridLeft + weekCol * colStep
+                    val y = gridTop + dow * rowStep
+
+                    if (day == today) {
+                        canvas.drawCircle(x, y - (daySize * 0.34f), daySize * 0.76f, todayBgPaint)
+                        canvas.drawText(day.toString(), x, y, todayTextPaint)
+                    } else {
+                        canvas.drawText(day.toString(), x, y, dayPaint)
                     }
-                    canvas.drawCircle(x, currentY + (daySize * 0.45f), max(3.5f, daySize * 0.17f), dotPaint)
+
+                    val hType = holidayMap[day]
+                    val hasPersonal = eventDays.contains(day)
+                    if (hType != null || hasPersonal) {
+                        dotPaint.color = when {
+                            hType == "SABARIMALA" -> Color.parseColor("#FFD54F")
+                            hType == "FESTIVAL" -> Color.parseColor("#FF8A65")
+                            hType == "BANK_COURT" -> Color.parseColor("#4FC3F7")
+                            else -> Color.parseColor("#81C784")
+                        }
+                        canvas.drawCircle(x, y + (daySize * 0.44f), max(3.5f, daySize * 0.16f), dotPaint)
+                    }
+
+                    dow++
+                    if (dow > 6) {
+                        dow = 0
+                        weekCol++
+                    }
+                }
+            } else {
+                // HORIZONTAL RECTANGLE: Standard Sunday -> Saturday left-to-right (7 cols), weeks top-to-bottom
+                val colStep = usableW / 6f
+                val totalRows = ((firstDayOfWeek + daysInMonth + 6) / 7) + 1 // +1 for S M T W T F S header row
+                val rowStep = gridHeight / (totalRows - 1).coerceAtLeast(1)
+
+                for (c in 0..6) {
+                    val x = gridLeft + c * colStep
+                    canvas.drawText(dayInitials[c], x, gridTop, labelPaint)
                 }
 
-                col++
-                if (col > 6) {
-                    col = 0
-                    currentY += rowStep
+                var row = 1
+                var col = firstDayOfWeek
+                for (day in 1..daysInMonth) {
+                    val x = gridLeft + col * colStep
+                    val y = gridTop + row * rowStep
+
+                    if (day == today) {
+                        canvas.drawCircle(x, y - (daySize * 0.34f), daySize * 0.76f, todayBgPaint)
+                        canvas.drawText(day.toString(), x, y, todayTextPaint)
+                    } else {
+                        canvas.drawText(day.toString(), x, y, dayPaint)
+                    }
+
+                    val hType = holidayMap[day]
+                    val hasPersonal = eventDays.contains(day)
+                    if (hType != null || hasPersonal) {
+                        dotPaint.color = when {
+                            hType == "SABARIMALA" -> Color.parseColor("#FFD54F")
+                            hType == "FESTIVAL" -> Color.parseColor("#FF8A65")
+                            hType == "BANK_COURT" -> Color.parseColor("#4FC3F7")
+                            else -> Color.parseColor("#81C784")
+                        }
+                        canvas.drawCircle(x, y + (daySize * 0.44f), max(3.5f, daySize * 0.16f), dotPaint)
+                    }
+
+                    col++
+                    if (col > 6) {
+                        col = 0
+                        row++
+                    }
                 }
             }
 

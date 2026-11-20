@@ -105,7 +105,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="SHAPE OF THE DAY"
+            android:text="CALENDAR ORIENTATION"
             android:textSize="11sp"
             android:letterSpacing="0.1"
             android:textColor="#888888" />
@@ -115,18 +115,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp">
-            <RadioButton android:id="@+id/rb_square" android:text="Square" android:textColor="#FFFFFF" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-            <RadioButton android:id="@+id/rb_rectangle" android:text="Rectangle (Fills Vertical + Horizontal Drag)" android:textColor="#FFFFFF" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-            <RadioButton android:id="@+id/rb_circle" android:text="Circle" android:textColor="#FFFFFF" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-            <RadioButton android:id="@+id/rb_triangle" android:text="Triangle" android:textColor="#FFFFFF" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-            <RadioButton android:id="@+id/rb_hexagon" android:text="Hexagon" android:textColor="#FFFFFF" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+            <RadioButton
+                android:id="@+id/rb_horizontal"
+                android:text="Horizontal Rectangle (Sun → Sat left to right)"
+                android:textColor="#FFFFFF"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+            <RadioButton
+                android:id="@+id/rb_vertical"
+                android:text="Vertical Rectangle (Sun → Sat top to bottom)"
+                android:textColor="#FFFFFF"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
         </RadioGroup>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:text="TEXT &amp; BORDER COLOR"
+            android:text="TEXT COLOR"
             android:textSize="11sp"
             android:letterSpacing="0.1"
             android:textColor="#888888" />
