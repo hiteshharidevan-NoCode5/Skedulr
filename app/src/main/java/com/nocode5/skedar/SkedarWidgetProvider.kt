@@ -12,6 +12,7 @@ import android.widget.RemoteViews
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -55,9 +56,17 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 220).coerceAtLeast(120)
             val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 220).coerceAtLeast(120)
 
-            val density = context.resources.displayMetrics.density
-            val pxW = (minW * density).toInt().coerceIn(300, 1400)
-            val pxH = (maxH * density).toInt().coerceIn(300, 1600)
+            // Cap max dimension at 680px while preserving exact aspect ratio (keeps bitmap < 1.5MB)
+            val aspect = minW.toFloat() / maxH.toFloat()
+            val pxW: Int
+            val pxH: Int
+            if (aspect >= 1f) {
+                pxW = 680
+                pxH = (680f / aspect).toInt().coerceIn(260, 680)
+            } else {
+                pxH = 680
+                pxW = (680f * aspect).toInt().coerceIn(260, 680)
+            }
 
             val bitmap = renderCalendarBitmap(
                 context, pxW, pxH, shape, opacity, showEvents, showHolidays, textColorHex, scalePercent
@@ -128,6 +137,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             }
 
             val parsedTextColor = try { Color.parseColor(textColorHex) } catch (_: Exception) { Color.WHITE }
+            val shadowColor = if (parsedTextColor == Color.BLACK) Color.argb(190, 255, 255, 255) else Color.argb(210, 0, 0, 0)
 
             val alpha = ((opacityPercent / 100f) * 255).toInt().coerceIn(0, 255)
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -138,9 +148,10 @@ class SkedarWidgetProvider : AppWidgetProvider() {
 
             val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = parsedTextColor
-                this.alpha = 170
+                this.alpha = 190
                 style = Paint.Style.STROKE
                 strokeWidth = 3f
+                setShadowLayer(4f, 0f, 1f, shadowColor)
             }
             canvas.drawPath(path, borderPaint)
 
@@ -154,8 +165,8 @@ class SkedarWidgetProvider : AppWidgetProvider() {
 
             val scaleFactor = (scalePercent / 100f).coerceIn(0.6f, 1.4f)
             val refDim = min(width, height).toFloat()
-            val titleSize = (refDim * 0.052f * scaleFactor).coerceIn(16f, 54f)
-            val daySize = (refDim * 0.042f * scaleFactor).coerceIn(13f, 44f)
+            val titleSize = (refDim * 0.055f * scaleFactor).coerceIn(16f, 46f)
+            val daySize = (refDim * 0.045f * scaleFactor).coerceIn(13f, 38f)
 
             val monthTitle = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(cal.time).uppercase()
             val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -163,18 +174,19 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                 textSize = titleSize
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
+                setShadowLayer(5f, 0f, 2f, shadowColor)
             }
 
             val usableW = when (shape) {
                 "TRIANGLE" -> width * 0.46f * scaleFactor
                 "SQUARE" -> (min(width, height) * 0.72f * scaleFactor)
-                else -> width * 0.74f * scaleFactor
+                else -> width * 0.76f * scaleFactor
             }.coerceAtMost(width * 0.88f)
 
             val usableH = when (shape) {
                 "TRIANGLE" -> height * 0.44f * scaleFactor
                 "SQUARE" -> (min(width, height) * 0.56f * scaleFactor)
-                else -> height * 0.60f * scaleFactor
+                else -> height * 0.62f * scaleFactor
             }.coerceAtMost(height * 0.78f)
 
             val topOffset = if (shape == "TRIANGLE") {
@@ -188,11 +200,14 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             val dayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = parsedTextColor
                 textSize = daySize
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
+                setShadowLayer(5f, 0f, 2f, shadowColor)
             }
             val todayBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = parsedTextColor
                 style = Paint.Style.FILL
+                setShadowLayer(4f, 0f, 1f, shadowColor)
             }
             val todayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = if (parsedTextColor == Color.BLACK) Color.WHITE else Color.BLACK
@@ -202,6 +217,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
             }
             val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
+                setShadowLayer(3f, 0f, 1f, Color.BLACK)
             }
 
             cal.set(Calendar.DAY_OF_MONTH, 1)
@@ -232,7 +248,7 @@ class SkedarWidgetProvider : AppWidgetProvider() {
                         hType == "BANK_COURT" -> Color.parseColor("#4FC3F7")
                         else -> Color.parseColor("#81C784")
                     }
-                    canvas.drawCircle(x, currentY + (daySize * 0.45f), (daySize * 0.16f).coerceAtLeast(3f), dotPaint)
+                    canvas.drawCircle(x, currentY + (daySize * 0.45f), max(3.5f, daySize * 0.17f), dotPaint)
                 }
 
                 col++

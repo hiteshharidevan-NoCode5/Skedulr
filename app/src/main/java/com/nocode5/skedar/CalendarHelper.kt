@@ -53,7 +53,7 @@ object CalendarHelper {
                     put(CalendarContract.Events.DTSTART, startCal.timeInMillis)
                     put(CalendarContract.Events.DTEND, endCal.timeInMillis)
                     put(CalendarContract.Events.TITLE, formattedTitle)
-                    put(CalendarContract.Events.DESCRIPTION, "Added via Skedlar ($category)")
+                    put(CalendarContract.Events.DESCRIPTION, "Added via Skedulr ($category)")
                     put(CalendarContract.Events.CALENDAR_ID, calId)
                     put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
                     if (category == "Birthday" || category == "Anniversary") {

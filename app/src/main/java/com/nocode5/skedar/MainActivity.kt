@@ -157,7 +157,7 @@ class MainActivity : AppCompatActivity() {
                 .apply()
 
             SkedarWidgetProvider.updateAllWidgets(this)
-            Toast.makeText(this, "Skedlar updated ($selectedShape)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Skedulr updated ($selectedShape)", Toast.LENGTH_SHORT).show()
         }
 
         if (!CalendarHelper.hasReadPermission(this) || !CalendarHelper.hasWritePermission(this)) {

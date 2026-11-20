@@ -6,7 +6,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Skedlar"
+        android:label="Skedulr"
         android:supportsRtl="true"
         android:theme="@style/Theme.Skedar">
 
