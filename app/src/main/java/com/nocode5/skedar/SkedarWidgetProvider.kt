@@ -174,10 +174,10 @@ class SkedarWidgetProvider : AppWidgetProvider() {
 
             val usableW = (width * 0.84f * scaleFactor).coerceAtMost(width * 0.92f)
             val usableH = (height * 0.76f * scaleFactor).coerceAtMost(height * 0.88f)
-            val topHeaderY = (height - usableH) / 2f + titleSize * 0.8f
+            val topHeaderY = (height - usableH) / 2f + titleSize * 0.6f
             canvas.drawText(monthTitle, cx, topHeaderY, titlePaint)
 
-            val gridTop = topHeaderY + titleSize * 1.15f
+            val gridTop = topHeaderY + titleSize * 2.1f
             val gridBottom = height - (height - usableH) / 2f
             val gridHeight = (gridBottom - gridTop).coerceAtLeast(100f)
             val gridLeft = cx - usableW / 2f
