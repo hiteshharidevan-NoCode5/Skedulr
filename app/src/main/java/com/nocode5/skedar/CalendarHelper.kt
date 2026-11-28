@@ -57,11 +57,11 @@ object CalendarHelper {
     }
 
     private fun getPrimaryCalendarId(context: Context): Long? {
-        context.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.IS_PRIMARY), null, null, null)?.use { c ->
+        context.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.IS_PRIMARY, CalendarContract.Calendars.ACCOUNT_TYPE), null, null, null)?.use { c ->
             var fallback: Long? = null
             while (c.moveToNext()) {
                 val id = c.getLong(0); if (fallback == null) fallback = id
-                if (c.getInt(1) == 1) return id
+                if (c.getInt(1) == 1 || c.getString(2) == "com.google") return id
             }
             return fallback
         }

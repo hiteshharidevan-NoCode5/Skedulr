@@ -107,7 +107,7 @@ class InteractiveCalendarView @JvmOverloads constructor(context: Context, attrs:
                 hitBoxes.add(DayHitBox(day, x, y - daySize * 0.3f, daySize * 0.95f))
                 if (isCurrentMonth && day == realToday) { canvas.drawCircle(x, y - (daySize * 0.34f), daySize * 0.78f, todayBgPaint); canvas.drawText(day.toString(), x, y, todayTextPaint) }
                 else canvas.drawText(day.toString(), x, y, dayPaint)
-                val hType = holidayMap[day]; val hasPersonal = eventDays.contains(day)
+                val hType = holidayMap[day]; val hasPersonal = eventDays.contains(day); val dotR = max(4f, daySize * 0.15f)
                 if (hType != null || hasPersonal) {
                     dotPaint.color = when (hType) { "SABARIMALA" -> Color.parseColor("#FFD54F"); "FESTIVAL" -> Color.parseColor("#FF8A65"); "BANK_COURT" -> Color.parseColor("#4FC3F7"); else -> Color.parseColor("#81C784") }
                     canvas.drawCircle(x, y + (daySize * 0.46f), max(4f, daySize * 0.16f), dotPaint)
@@ -125,7 +125,7 @@ class InteractiveCalendarView @JvmOverloads constructor(context: Context, attrs:
                 hitBoxes.add(DayHitBox(day, x, y - daySize * 0.3f, daySize * 0.95f))
                 if (isCurrentMonth && day == realToday) { canvas.drawCircle(x, y - (daySize * 0.34f), daySize * 0.78f, todayBgPaint); canvas.drawText(day.toString(), x, y, todayTextPaint) }
                 else canvas.drawText(day.toString(), x, y, dayPaint)
-                val hType = holidayMap[day]; val hasPersonal = eventDays.contains(day)
+                val hType = holidayMap[day]; val hasPersonal = eventDays.contains(day); val dotR = max(4f, daySize * 0.15f)
                 if (hType != null || hasPersonal) {
                     dotPaint.color = when (hType) { "SABARIMALA" -> Color.parseColor("#FFD54F"); "FESTIVAL" -> Color.parseColor("#FF8A65"); "BANK_COURT" -> Color.parseColor("#4FC3F7"); else -> Color.parseColor("#81C784") }
                     canvas.drawCircle(x, y + (daySize * 0.46f), max(4f, daySize * 0.16f), dotPaint)
