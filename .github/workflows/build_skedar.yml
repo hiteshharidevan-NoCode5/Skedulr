@@ -42,16 +42,17 @@ jobs:
         run: |
           mkdir -p release_out
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          echo "Found APK: $APK_PATH"
           cp "$APK_PATH" release_out/Skedulr.apk
           zip -r release_out/Skedulr.zip app build.gradle settings.gradle gradle.properties release_out/Skedulr.apk
 
       - name: Publish to GitHub Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: Skedulr Latest Release
-          body: "Signed release build v2.4 of Skedulr with full Google Calendar sync."
-          files: |
-            release_out/Skedulr.apk
-            release_out/Skedulr.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest release_out/Skedulr.apk release_out/Skedulr.zip --clobber
+          else
+            gh release create latest release_out/Skedulr.apk release_out/Skedulr.zip \
+              --title "Skedulr Latest Release" \
+              --notes "Signed release build of Skedulr (updates in place without uninstalling)."
+          fi
