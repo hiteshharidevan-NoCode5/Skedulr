@@ -11,8 +11,8 @@ android {
         applicationId "com.nocode5.skedar"
         minSdk 26
         targetSdk 34
-        versionCode 14
-        versionName "2.7"
+        versionCode 15
+        versionName "2.8"
         setProperty("archivesBaseName", "Skedulr")
     }
 
@@ -24,11 +24,11 @@ android {
     signingConfigs {
         release {
             def ksFile = file("skedulr-release.jks")
-            if (ksFile.exists() && project.hasProperty("SKEDULR_STORE_PASS")) {
+            if (ksFile.exists()) {
                 storeFile ksFile
-                storePassword project.property("SKEDULR_STORE_PASS")
-                keyAlias project.property("SKEDULR_KEY_ALIAS")
-                keyPassword project.property("SKEDULR_KEY_PASS")
+                storePassword "skedulr2026"
+                keyAlias "skedulr"
+                keyPassword "skedulr2026"
             }
         }
     }
