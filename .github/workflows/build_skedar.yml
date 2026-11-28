@@ -41,7 +41,9 @@ jobs:
       - name: Package Skedulr.apk and Skedulr.zip
         run: |
           mkdir -p release_out
-          cp app/build/outputs/apk/release/Skedulr-release.apk release_out/Skedulr.apk
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "Found APK: $APK_PATH"
+          cp "$APK_PATH" release_out/Skedulr.apk
           zip -r release_out/Skedulr.zip app build.gradle settings.gradle gradle.properties release_out/Skedulr.apk
 
       - name: Publish to GitHub Releases
@@ -49,7 +51,7 @@ jobs:
         with:
           tag_name: latest
           name: Skedulr Latest Release
-          body: "Signed release build of Skedulr (installs directly over previous signed versions without uninstalling)."
+          body: "Signed release build v2.4 of Skedulr with full Google Calendar sync."
           files: |
             release_out/Skedulr.apk
             release_out/Skedulr.zip
